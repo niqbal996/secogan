@@ -24,7 +24,7 @@ if __name__ == '__main__':
     parser.add_argument('--weights', required=True, help='Path to the weights folder')
     parser.add_argument('--data_size', type=int, default=None, help='limit the size of dataset')
     parser.add_argument('--gpu_ids', type=str, default='0', help='gpu ids: e.g. 0  0,1,2, 0,2. use -1 for CPU')
-    parser.add_argument('--load_size', type=int, default=512, help='scale images to this size')
+    parser.add_argument('--load_size', type=int, default=256, help='scale images to this size')
     parser.add_argument('--output_dir', required=True, help='path to output directory')
     parser.add_argument('--batch_size', type=int, default=1, help='input batch size')
 
@@ -45,8 +45,8 @@ if __name__ == '__main__':
 
     print('Fetching models from ', experiment_dir)
     checkpoints = glob(os.path.join(opt.weights, '*.pth'))
-    encoder_path = [s for s in checkpoints if "encoder" in s]
-    decoder_path = [s for s in checkpoints if "decoder" in s]
+    encoder_path = [s for s in checkpoints if "encoder_180" in s]
+    decoder_path = [s for s in checkpoints if "decoder_180" in s]
 
     dataset = Dataset(opt.data_source, opt.load_size)
     dataloader = utils.data.DataLoader(dataset=dataset,
@@ -56,26 +56,31 @@ if __name__ == '__main__':
 
     print('Number of batches:', len(dataloader))
 
-    model = Model() # .to(device)
-    model.eval()
-    model = nn.DataParallel(model, gpu_ids)
-    model.to(device)
-    print('Loading encoder weights from ', encoder_path)
+    # model = Model() # .to(device)
+    # model = nn.DataParallel(model, gpu_ids)
+    # model.to(device)
+    # model.eval()
+
+    print('Loading encoder weights from ', encoder_path[0])
     encoder = Encoder()
     encoder.load_state_dict(torch.load(encoder_path[0]))
+    encoder.to(device)
+    encoder.eval()
 
-    print('Loading decoder weights from ', encoder_path)
+    print('Loading decoder weights from ', decoder_path[0])
     decoder = Decoder()
     decoder.load_state_dict(torch.load(decoder_path[0]))
+    decoder.to(device)
+    decoder.eval()
 
-    params_gen = list(model.module.encoder.parameters()) + list(model.module.decoder.parameters())
-    optimizer_gen = optim.Adam(params_gen, lr=opt.lr, betas=(opt.beta1, opt.beta2))
+    # params_gen = list(model.module.encoder.parameters()) + list(model.module.decoder.parameters())
+    # optimizer_gen = optim.Adam(params_gen, lr=opt.lr, betas=(opt.beta1, opt.beta2))
 
-    params_dis_a = model.module.dis_a.parameters()
-    optimizer_dis_a = optim.Adam(params_dis_a, lr=opt.lr, betas=(opt.beta1, opt.beta2))
+    # params_dis_a = model.module.dis_a.parameters()
+    # optimizer_dis_a = optim.Adam(params_dis_a, lr=opt.lr, betas=(opt.beta1, opt.beta2))
 
-    params_dis_b = model.module.dis_b.parameters()
-    optimizer_dis_b = optim.Adam(params_dis_b, lr=opt.lr, betas=(opt.beta1, opt.beta2))
+    # params_dis_b = model.module.dis_b.parameters()
+    # optimizer_dis_b = optim.Adam(params_dis_b, lr=opt.lr, betas=(opt.beta1, opt.beta2))
 
     criterion_gan = nn.MSELoss().to(device)
     criterion_rec = nn.L1Loss().to(device)
@@ -102,5 +107,12 @@ if __name__ == '__main__':
     zeros = torch.zeros((8 * opt.batch_size, 1)).to(device)
 
     for iters, data in enumerate(dataloader):
-        dataA = dataA.to(device)
+        dataA = data.to(device)
         x_a = Variable(dataA).to(device)
+        c_a = encoder(x_a)
+        x_ab = decoder(c_a, s_b)
+        source_image = x_a.detach().cpu()
+        trans_image = x_ab.detach().cpu()
+        res = torch.cat((source_image, trans_image))
+        tv.utils.save_image(res, os.path.join(experiment_dir, 'images', 'grid_epoch_{}.png'.format(iters)))
+        print('hold')
