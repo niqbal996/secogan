@@ -12,11 +12,27 @@
             "console": "integratedTerminal",
             "args": [
                 "--name", "syn_maize_2_real_maize",
-                "--gpu_ids", "0,1",
+                "--gpu_ids", "0",
                 "--data_source", "/home/niqbal/datasets/corn_syn2real/syn_data/",
                 "--data_target", "/home/niqbal/datasets/corn_syn2real/real_data/",
                 "--output_dir", "./output",
-                "--batch_size", "4"
+                "--batch_size", "2"
+            ],
+            "justMyCode": true
+        },
+        {
+            "name": "Test",
+            "type": "python",
+            "request": "launch",
+            "program": "test.py",
+            "console": "integratedTerminal",
+            "args": [
+                "--name", "syn2real_conversion",
+                "--gpu_ids", "0",
+                "--weights", "output/syn_maize_2_real_maize/checkpoints/",
+                "--data_source", "/mnt/d/datasets/crop_style_transfer/real_crops/",
+                "--output_dir", "./output/",
+                "--batch_size", "2"
             ],
             "justMyCode": true
         }
