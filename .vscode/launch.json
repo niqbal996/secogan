@@ -1,0 +1,40 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Train",
+            "type": "python",
+            "request": "launch",
+            "program": "train.py",
+            "console": "integratedTerminal",
+            "args": [
+                "--name", "syn_maize_2_real_maize",
+                "--gpu_ids", "0",
+                "--data_source", "/mnt/d/datasets/crop_style_transfer/real_crops/",
+                "--data_target", "/mnt/d/datasets/crop_style_transfer/syn_crops/",
+                "--output_dir", "./output",
+                "--batch_size", "2"
+            ],
+            "justMyCode": true
+        },
+        {
+            "name": "Test",
+            "type": "python",
+            "request": "launch",
+            "program": "test.py",
+            "console": "integratedTerminal",
+            "args": [
+                "--name", "syn2real_conversion",
+                "--gpu_ids", "0",
+                "--weights", "output/syn_maize_2_real_maize/checkpoints/",
+                "--data_source", "/mnt/d/datasets/crop_style_transfer/real_crops/",
+                "--output_dir", "./output/",
+                "--batch_size", "2"
+            ],
+            "justMyCode": true
+        }
+    ]
+}
