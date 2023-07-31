@@ -13,10 +13,6 @@ from dataset import Dataset
 
 
 if __name__ == '__main__':
-
-    parser = argparse.ArgumentParser()
-    import argparse
-
     parser = argparse.ArgumentParser()
     parser.add_argument('--name', type=str, required=True, help='name of the experiment.')
     parser.add_argument('--epochs', type=int, default=200, help='number of training epochs')
@@ -31,14 +27,17 @@ if __name__ == '__main__':
     parser.add_argument('--beta2', type=float, default=0.5, help='momentum term of adam')
     parser.add_argument('--lr', type=float, default=1e-4, help='initial learning rate for adam')
     parser.add_argument('--output_dir', required=True, help='path to output directory')
+    parser.add_argument('--num_workers', type=int, default=4, help='Number of workers for data loader')
     parser.add_argument('--save_freq', type=int, default=20, help='frequency of saving checkpoints')
 
     opt = parser.parse_args()
     print(opt.__dict__)
 
     gpu_ids = list(map(int, opt.gpu_ids.split(",")))
-    device = torch.device('cuda:{}'.format(gpu_ids[0])) #if gpu_ids else torch.device('cpu')
-
+    if gpu_ids[0] == -1: 
+        device = torch.device('cpu')
+    else:
+        device = torch.device('cuda:{}'.format(gpu_ids[0])) 
 
     if not os.path.exists(opt.output_dir):
         os.makedirs(opt.output_dir)
@@ -55,24 +54,37 @@ if __name__ == '__main__':
     dataset = Dataset(opt.data_source, opt.data_target, opt.load_size, opt.crop_size, opt.data_size)
     dataloader = utils.data.DataLoader(dataset=dataset,
                                        batch_size=opt.batch_size,
+                                       num_workers=opt.num_workers,
                                        shuffle=True,
                                        drop_last=True)
 
     print('Number of batches:', len(dataloader))
-
     model = Model() # .to(device)
-    model = nn.DataParallel(model, gpu_ids)
-    model.to(device)
+    multi_gpu = True
+    if multi_gpu:
+        model = nn.DataParallel(model, gpu_ids)
+        model.to(device)
 
-    params_gen = list(model.module.encoder.parameters()) + list(model.module.decoder.parameters())
-    optimizer_gen = optim.Adam(params_gen, lr=opt.lr, betas=(opt.beta1, opt.beta2))
+        params_gen = list(model.module.encoder.parameters()) + list(model.module.decoder.parameters())
+        optimizer_gen = optim.Adam(params_gen, lr=opt.lr, betas=(opt.beta1, opt.beta2))
 
-    params_dis_a = model.module.dis_a.parameters()
-    optimizer_dis_a = optim.Adam(params_dis_a, lr=opt.lr, betas=(opt.beta1, opt.beta2))
+        params_dis_a = model.module.dis_a.parameters()
+        optimizer_dis_a = optim.Adam(params_dis_a, lr=opt.lr, betas=(opt.beta1, opt.beta2))
 
-    params_dis_b = model.module.dis_b.parameters()
-    optimizer_dis_b = optim.Adam(params_dis_b, lr=opt.lr, betas=(opt.beta1, opt.beta2))
+        params_dis_b = model.module.dis_b.parameters()
+        optimizer_dis_b = optim.Adam(params_dis_b, lr=opt.lr, betas=(opt.beta1, opt.beta2))
+    else:
+        model.to(device)
 
+        params_gen = list(model.encoder.parameters()) + list(model.decoder.parameters())
+        optimizer_gen = optim.Adam(params_gen, lr=opt.lr, betas=(opt.beta1, opt.beta2))
+
+        params_dis_a = model.dis_a.parameters()
+        optimizer_dis_a = optim.Adam(params_dis_a, lr=opt.lr, betas=(opt.beta1, opt.beta2))
+
+        params_dis_b = model.dis_b.parameters()
+        optimizer_dis_b = optim.Adam(params_dis_b, lr=opt.lr, betas=(opt.beta1, opt.beta2))
+    torch.autograd.set_detect_anomaly(True)
     criterion_gan = nn.MSELoss().to(device)
     criterion_rec = nn.L1Loss().to(device)
 
@@ -143,9 +155,8 @@ if __name__ == '__main__':
             optimizer_dis_a.zero_grad()
             loss_a_real = criterion_gan(pred_real_a, ones)
             loss_a_fake = criterion_gan(pred_fake_ba, zeros)
-
-            loss_dis_a = 1*(loss_a_real + loss_a_fake)  # * 0.5
-
+            
+            loss_dis_a = loss_a_real + loss_a_fake  # * 0.5
             loss_dis_a.backward()
             optimizer_dis_a.step()
             losses_dis_a.append(loss_dis_a.item())
