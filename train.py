@@ -5,6 +5,8 @@ import argparse
 import torch
 from torch import cuda, nn, utils, optim
 from torch.autograd import Variable
+import warnings
+warnings.filterwarnings("ignore", category=UserWarning) 
 
 import torchvision as tv
 
@@ -37,19 +39,18 @@ if __name__ == '__main__':
     if gpu_ids[0] == -1: 
         device = torch.device('cpu')
     else:
-        device = torch.device('cuda:{}'.format(gpu_ids[0])) 
+        # device = torch.device('cuda:{}'.format(gpu_ids[0])) 
+        device = torch.device('cuda') # use all gpus
 
-    if not os.path.exists(opt.output_dir):
-        os.makedirs(opt.output_dir)
 
+    os.makedirs(opt.output_dir, exist_ok=True)
     experiment_dir = os.path.join(opt.output_dir, opt.name)
-    if not os.path.exists(experiment_dir):
-        os.makedirs(experiment_dir)
-        os.makedirs(os.path.join(experiment_dir, 'images'))
-        os.makedirs(os.path.join(experiment_dir, 'checkpoints'))
+    # if not os.path.exists(experiment_dir):
+    os.makedirs(experiment_dir, exist_ok=True)
+    os.makedirs(os.path.join(experiment_dir, 'images'), exist_ok=True)
+    os.makedirs(os.path.join(experiment_dir, 'checkpoints'), exist_ok=True)
 
     print('Storing results to ', experiment_dir)
-
 
     dataset = Dataset(opt.data_source, opt.data_target, opt.load_size, opt.crop_size, opt.data_size)
     dataloader = utils.data.DataLoader(dataset=dataset,
@@ -84,7 +85,6 @@ if __name__ == '__main__':
 
         params_dis_b = model.dis_b.parameters()
         optimizer_dis_b = optim.Adam(params_dis_b, lr=opt.lr, betas=(opt.beta1, opt.beta2))
-    torch.autograd.set_detect_anomaly(True)
     criterion_gan = nn.MSELoss().to(device)
     criterion_rec = nn.L1Loss().to(device)
 
@@ -113,6 +113,7 @@ if __name__ == '__main__':
         epoch_start = time.time()
 
         for iters, (dataA, dataB) in enumerate(dataloader):
+            # print('loaded data iteration number: {}'.format(iters))
             start = time.time()
             # if idx == 1: break
             dataA = dataA.to(device)
@@ -172,7 +173,7 @@ if __name__ == '__main__':
             optimizer_dis_b.step()
             losses_dis_b.append(loss_dis_b.item())
 
-            if not (iters % 100):
+            if not (iters % 10):
                 print('[%d/%d;%d/%d]: gen: %.3f, rec_aa: %.3f, rec_bb: %.3f, gen_adv: %.3f, dis_a: %.3f, dis_b: %.3f'
                       % (iters, len(dataloader),
                          (epoch), opt.epochs,
@@ -203,3 +204,7 @@ if __name__ == '__main__':
 
         image_grid = tv.utils.make_grid(res, nrow=opt.batch_size, normalize=True)
         tv.utils.save_image(image_grid, os.path.join(experiment_dir, 'images', 'grid_epoch_' + str(epoch) + '.png'))
+        if epoch == 180:
+            model.save(os.path.join(experiment_dir, 'checkpoints'), postfix=epoch)
+            trans_image = tv.utils.make_grid(x_ab.detach().cpu(), nrow=opt.batch_size, normalize=True)
+            tv.utils.save_image(trans_image, os.path.join(experiment_dir, 'images', 'trans_image_' + str(epoch) + '.png'))
