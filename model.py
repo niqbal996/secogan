@@ -1,6 +1,8 @@
 import torch
 from torch import nn
 import torch.nn.functional as F
+from glob import glob
+import os
 
 from utils import patchify_image
 
@@ -256,6 +258,23 @@ class Model(nn.Module):
         torch.save(self.dis_a.state_dict(), "%s/discriminator_a_%d.pth" % (path, postfix))
         torch.save(self.dis_b.state_dict(), "%s/discriminator_b_%d.pth" % (path, postfix))
 
+    def load(self, weights_folder, checkpoint_number):
+        print("[INFO] Loading checkpoint from: \n {}".format(weights_folder))
+        checkpoints = glob(os.path.join(weights_folder, '*.pth'))
+        encoder_path = [s for s in checkpoints if "encoder_{}".format(checkpoint_number) in s][0]
+        decoder_path = [s for s in checkpoints if "decoder_{}".format(checkpoint_number) in s][0]
+        disc_a = [s for s in checkpoints if "discriminator_a_{}".format(checkpoint_number) in s][0]
+        disc_b = [s for s in checkpoints if "discriminator_b_{}".format(checkpoint_number) in s][0]
+
+        encoder_state_dict = torch.load(encoder_path)
+        self.encoder.load_state_dict(encoder_state_dict)
+        decoder_state_dict = torch.load(decoder_path)
+        self.decoder.load_state_dict(decoder_state_dict)
+        disc_a_state_dict = torch.load(disc_a)
+        self.dis_a.load_state_dict(disc_a_state_dict)
+        disc_b_state_dict = torch.load(disc_b)
+        self.dis_b.load_state_dict(disc_b_state_dict)
+        print("[INFO] Model weights loaded successfully!")
 
 ##################################################################################
 # Normalization layers
