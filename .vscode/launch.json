@@ -35,6 +35,22 @@
                 "--batch_size", "2"
             ],
             "justMyCode": true
+        },
+        {
+            "name": "Analyze",
+            "type": "python",
+            "request": "launch",
+            "program": "test.py",
+            "console": "integratedTerminal",
+            "args": [
+                "--name", "syn2real_conversion",
+                "--gpu_ids", "0",
+                "--weights", "/mnt/d/trainers/synthetic_style_transfer/syn2real_style_transfer_sugarbeets",
+                "--data_source", "/mnt/d/datasets/sugarbeet_syn_v1/images",
+                "--output_dir", "./output/",
+                "--batch_size", "1"
+            ],
+            "justMyCode": true
         }
     ]
 }
