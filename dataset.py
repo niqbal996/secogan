@@ -15,7 +15,9 @@ class Dataset(utils.data.Dataset):
         ])
 
         self.source = datasets.ImageFolder(root=source_path, transform=tfm)
+        print("[INFO] Found {} images in source domain folder".format(len(self.source)))
         self.target = datasets.ImageFolder(root=target_path, transform=tfm)
+        print("[INFO] Found {} images in target domain folder".format(len(self.target)))
         self.size = min(len(self.source), len(self.target)) if limit == None else limit
 
     def __len__(self):
